@@ -128,11 +128,6 @@ document.getElementById("booking-canvas").addEventListener("touchstart", functio
 	canvasXStart = x;
 })
 
-
-
-
-
-
 document.getElementById("booking-canvas").addEventListener("mousedown", e => {
 	// Get mouse x position on canvas
 	var rect = document.getElementById("booking-canvas").getBoundingClientRect()
@@ -166,7 +161,6 @@ let oldBookingPosition = bookingPosition
 renderCanvas()
 function renderCanvas() {
 
-
 	// grab booking canvas
 	var canvas = document.getElementById("booking-canvas")
 
@@ -185,23 +179,13 @@ function renderCanvas() {
 	// set line width to 5
 	ctx.lineWidth = 2;
 
-
-
-
 	let zoom = 30000;
 	let padding = 50
-
 
 	ctx.fillStyle = "#262626"
 	let start = timeToX(Date.now())
 	let end = timeToX(bookingPosition);
 	ctx.fillRect(start, 0, end - start, height)
-
-
-	/* function xToTime(x) {
-		x -= width / 2;
-		return x * 500 + bookingPosition
-	} */
 
 	function timeToX(time) {
 		return (time - bookingPosition) / zoom + width / 2
@@ -210,7 +194,6 @@ function renderCanvas() {
 	function xToTime(x) {
 		return (x - width / 2) * zoom + bookingPosition
 	}
-
 
 	let startTime = xToTime(-50)
 	// set start time to the closest whole hour
@@ -257,10 +240,6 @@ function renderCanvas() {
 	let arrowLineWidth = 5;
 	ctx.fillRect(start, height / 2 - arrowLineWidth / 2, (end - 5) - start, arrowLineWidth)
 	ctx.drawImage(arrow, timeToX(bookingPosition) - 36, height / 2 - 25, 50, 50)
-
-
-
-
 
 }
 

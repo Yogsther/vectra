@@ -153,6 +153,8 @@ io.on('connection', socket => {
 
 			status.notifications = []
 
+			clearTimeout(reminderInterval)
+
 			log(status.name + " returned the car")
 
 			status.booked = false;
