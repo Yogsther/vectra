@@ -156,8 +156,8 @@ io.on('connection', (socket) => {
         if (user.name == 'Olle') {
           client.users.fetch(user.discord, false).then((user) => {
             // Message Olle
-            user.send(user.name + ' says they parked in a Garage today')
-            log(user.name + ' says they parked in a Garage today')
+            user.send(parked_user.name + ' says they parked in a Garage today')
+            log(parked_user.name + ' says they parked in a Garage today')
           })
         }
       }
