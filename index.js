@@ -1,181 +1,212 @@
-const express = require('express');
-const app = express();
-const http = require('http');
-const server = http.createServer(app);
-const { Server } = require("socket.io");
-const io = new Server(server);
-const fs = require("file-system");
+const express = require('express')
+const app = express()
+const http = require('http')
+const server = http.createServer(app)
+const { Server } = require('socket.io')
+const io = new Server(server)
+const fs = require('file-system')
 
-app.use("/", express.static('dist'))
-app.get("/", (req, res) => {
-	res.sendFile(__dirname + "/dist/index.html");
-});
+app.use('/', express.static('dist'))
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/dist/index.html')
+})
 
-let config = JSON.parse(fs.readFileSync("config.json"))
-var users = JSON.parse(fs.readFileSync("users.json"))
-var history = JSON.parse(fs.readFileSync("history.json"))
+let config = JSON.parse(fs.readFileSync('config.json'))
+var users = JSON.parse(fs.readFileSync('users.json'))
+var history = JSON.parse(fs.readFileSync('history.json'))
 
 var clients = {}
 
 var status = {
-	booked: false,
-	key: null,
-	date: new Date(),
-	duration: "",
-	name: "",
-	notifications: []
+  booked: false,
+  key: null,
+  date: new Date(),
+  duration: '',
+  name: '',
+  notifications: [],
 }
 
 // Discord bot
-const { Client, Intents } = require('discord.js');
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
+const { Client, Intents } = require('discord.js')
+const client = new Client({
+  intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES],
+})
 
 client.once('ready', () => {
-	log('Discord bot online');
-	client.user.setActivity("vectra.okdev.se");
-});
+  log('Discord bot online')
+  client.user.setActivity('vectra.okdev.se')
+})
 
-client.on("message", message => {
+client.on('message', (message) => {})
 
-});
-
-client.login(config.discord_token);
+client.login(config.discord_token)
 
 function sendStatus(socketid) {
-	var user = getUser(clients[socketid].key)
-	let package = {
-		booked: status.booked,
-		name: status.name,
-		clock: zeroPadd(status.date.getHours()) + ":" + zeroPadd(status.date.getMinutes()),
-		duration: status.duration,
-		returnTime: status.returnTime,
-		isBooker: status.key == clients[socketid].key && status.key != null,
-		toBeNotified: user && (status.notifications.indexOf(user.discord) != -1)
-	}
+  var user = getUser(clients[socketid].key)
+  let package = {
+    booked: status.booked,
+    name: status.name,
+    clock:
+      zeroPadd(status.date.getHours()) +
+      ':' +
+      zeroPadd(status.date.getMinutes()),
+    duration: status.duration,
+    returnTime: status.returnTime,
+    isBooker: status.key == clients[socketid].key && status.key != null,
+    toBeNotified: user && status.notifications.indexOf(user.discord) != -1,
+  }
 
-	io.to(socketid).emit("status", package)
+  io.to(socketid).emit('status', package)
 }
 
 function zeroPadd(num) {
-	while (String(num).length < 2) num = "0" + num;
-	return num;
+  while (String(num).length < 2) num = '0' + num
+  return num
 }
 
 function bookingStateChanged() {
-	for (let id in clients) {
-		sendStatus(id)
-	}
+  for (let id in clients) {
+    sendStatus(id)
+  }
 }
 
 function getUser(key) {
-	for (let user of users) {
-		if (user.key == key) return user;
-	}
+  for (let user of users) {
+    if (user.key == key) return user
+  }
 }
 
 function log(str) {
-	let date = new Date()
-	console.log(zeroPadd(date.getHours()) + ":" + zeroPadd(date.getMinutes()) + " " + date.getDate() + "/" + (date.getMonth() + 1) + " " + str)
+  let date = new Date()
+  console.log(
+    zeroPadd(date.getHours()) +
+      ':' +
+      zeroPadd(date.getMinutes()) +
+      ' ' +
+      date.getDate() +
+      '/' +
+      (date.getMonth() + 1) +
+      ' ' +
+      str,
+  )
 }
 
-let reminderInterval;
+let reminderInterval
 
-io.on('connection', socket => {
-	clients[socket.id] = { key: null }
+io.on('connection', (socket) => {
+  clients[socket.id] = { key: null }
 
-	socket.on("book", info => {
-		let user = getUser(info.key)
-		if (user) {
-			if (!status.booked) {
-				status.booked = true;
-				status.key = user.key
-				status.name = user.name
-				status.date = new Date()
-				status.duration = Date.now - info.time
-				status.returnTime = info.time
+  socket.on('book', (info) => {
+    let user = getUser(info.key)
+    if (user) {
+      if (!status.booked) {
+        status.booked = true
+        status.key = user.key
+        status.name = user.name
+        status.date = new Date()
+        status.duration = Date.now - info.time
+        status.returnTime = info.time
 
-				log(`${status.name} booked the car`)
+        log(`${status.name} booked the car`)
 
-				reminderInterval = setTimeout(() => {
-					client.users.fetch(user.discord, false).then((user) => {
-						user.send("Hey! Did you forgot to return the car? 🤔");
-						log("Reminded " + user.username + " to return the car")
-					});
-				}, (status.returnTime - Date.now()) + (30 * 60 * 1000))
+        reminderInterval = setTimeout(() => {
+          client.users.fetch(user.discord, false).then((user) => {
+            user.send('Hey! Did you forget to return the car? 🤔')
+            log('Reminded ' + user.username + ' to return the car')
+          })
+        }, status.returnTime - Date.now())
 
-				bookingStateChanged()
-			} else {
-				socket.emit("Already booked")
-			}
-		} else {
-			socket.emit("no_admin")
-		}
-	})
+        bookingStateChanged()
+      } else {
+        socket.emit('Already booked')
+      }
+    } else {
+      socket.emit('no_admin')
+    }
+  })
 
-	socket.on("notify", active => {
-		var user = getUser(clients[socket.id].key)
-		if (user) {
-			if (active) {
-				if (status.notifications.indexOf(user.discord) == -1) {
-					status.notifications.push(user.discord)
-					sendStatus(socket.id)
-					log(user.name + " asked to be notified")
-				}
-			} else {
-				// User wants to remove notification
-				status.notifications.splice(status.notifications.indexOf(user.discord), 1)
-				sendStatus(socket.id)
-				log(user.name + " revoked notification")
-			}
-		} else {
-			socket.emit("no_admin")
-		}
-	})
+  socket.on('notify', (active) => {
+    var user = getUser(clients[socket.id].key)
+    if (user) {
+      if (active) {
+        if (status.notifications.indexOf(user.discord) == -1) {
+          status.notifications.push(user.discord)
+          sendStatus(socket.id)
+          log(user.name + ' asked to be notified')
+        }
+      } else {
+        // User wants to remove notification
+        status.notifications.splice(
+          status.notifications.indexOf(user.discord),
+          1,
+        )
+        sendStatus(socket.id)
+        log(user.name + ' revoked notification')
+      }
+    } else {
+      socket.emit('no_admin')
+    }
+  })
 
-	socket.on("return", () => {
-		if (clients[socket.id].key == status.key) {
+  socket.on('parking_response', (response) => {
+    let parked_user = getUser(clients[socket.id].key)
 
-			if (Date.now() - status.date.getTime() > 1000 * 60) {
-				history.push({
-					name: status.name,
-					from: status.date,
-					to: new Date()
-				})
-				fs.writeFileSync("history.json", JSON.stringify(history, null, 4))
-			}
+    if (parked_user && response.did_park) {
+      for (let user of users) {
+        if (user.name == 'Olle') {
+          client.users.fetch(user.discord, false).then((user) => {
+            // Message Olle
+            user.send(user.name + ' says they parked in a Garage today')
+            log(user.name + ' says they parked in a Garage today')
+          })
+        }
+      }
+    }
+  })
 
-			for (let discord of status.notifications) {
-				client.users.fetch(discord, false).then((user) => {
-					user.send("The car is avalible now.");
-					log("Alerted discord user " + user.username)
-				});
-			}
+  socket.on('return', () => {
+    if (clients[socket.id].key == status.key) {
+      if (Date.now() - status.date.getTime() > 1000 * 60) {
+        history.push({
+          name: status.name,
+          from: status.date,
+          to: new Date(),
+        })
+        fs.writeFileSync('history.json', JSON.stringify(history, null, 4))
+      }
 
-			status.notifications = []
+      // TODO Prevent Olle from seeing
+      socket.emit('ask_for_parking')
 
-			clearTimeout(reminderInterval)
+      for (let discord of status.notifications) {
+        client.users.fetch(discord, false).then((user) => {
+          user.send('The car is avalible now.')
+          log('Alerted discord user ' + user.username)
+        })
+      }
 
-			log(status.name + " returned the car")
+      status.notifications = []
 
-			status.booked = false;
-			status.key = null;
-			bookingStateChanged()
-		}
+      clearTimeout(reminderInterval)
 
-	})
+      log(status.name + ' returned the car')
 
-	socket.on("login", key => {
-		clients[socket.id].key = key
-		sendStatus(socket.id)
-	})
+      status.booked = false
+      status.key = null
+      bookingStateChanged()
+    }
+  })
 
-	socket.on("disconnect", () => {
-		delete clients[socket.id]
-	})
+  socket.on('login', (key) => {
+    clients[socket.id].key = key
+    sendStatus(socket.id)
+  })
 
-
-});
+  socket.on('disconnect', () => {
+    delete clients[socket.id]
+  })
+})
 
 server.listen(config.port, () => {
-	log("Started server on port " + config.port)
-});
+  log('Started server on port ' + config.port)
+})
