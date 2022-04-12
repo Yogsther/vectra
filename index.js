@@ -11,6 +11,14 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/dist/index.html')
 })
 
+let reminder_messages = [
+  "Hey, did you forget to return the car? 🤔",
+  "Ok, i'm starting to get a little angry. It's time to return the car.",
+  "Why haven't you returned the car??",
+  "BRUH, return the car!",
+  "RETURN THE CAR ASSHOLE"
+]
+
 let config = JSON.parse(fs.readFileSync('config.json'))
 var users = JSON.parse(fs.readFileSync('users.json'))
 var history = JSON.parse(fs.readFileSync('history.json'))
@@ -37,7 +45,7 @@ client.once('ready', () => {
   client.user.setActivity('vectra.okdev.se')
 })
 
-client.on('message', (message) => {})
+client.on('message', (message) => { })
 
 client.login(config.discord_token)
 
@@ -80,17 +88,18 @@ function log(str) {
   let date = new Date()
   console.log(
     zeroPadd(date.getHours()) +
-      ':' +
-      zeroPadd(date.getMinutes()) +
-      ' ' +
-      date.getDate() +
-      '/' +
-      (date.getMonth() + 1) +
-      ' ' +
-      str,
+    ':' +
+    zeroPadd(date.getMinutes()) +
+    ' ' +
+    date.getDate() +
+    '/' +
+    (date.getMonth() + 1) +
+    ' ' +
+    str,
   )
 }
 
+let reminderTimeout
 let reminderInterval
 
 io.on('connection', (socket) => {
@@ -109,11 +118,24 @@ io.on('connection', (socket) => {
 
         log(`${status.name} booked the car`)
 
-        reminderInterval = setTimeout(() => {
+        reminderTimeout = setTimeout(() => {
+          let reminderIndex = 0
           client.users.fetch(user.discord, false).then((user) => {
             user.send('Hey! Did you forget to return the car? 🤔')
             log('Reminded ' + user.username + ' to return the car')
           })
+
+          reminderInterval(() => {
+            client.users.fetch(user.discord, false).then((user) => {
+              let message = reminder_messages[reminderIndex]
+              user.send(message)
+              log('Reminded ' + user.username + ' to return the car (' + message + ')')
+              reminderIndex++
+              if (reminderIndex >= reminder_messages.length) reminderIndex = reminder_messages.length - 1
+            })
+            // 30 seconds
+          }, 1000 * 30)
+
         }, status.returnTime - Date.now())
 
         bookingStateChanged()
@@ -187,7 +209,7 @@ io.on('connection', (socket) => {
 
       status.notifications = []
 
-      clearTimeout(reminderInterval)
+      clearTimeout(reminderTimeout)
 
       log(status.name + ' returned the car')
 
